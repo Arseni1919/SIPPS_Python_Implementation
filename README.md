@@ -3,7 +3,9 @@
 ## SIPPS Algorithm
 
 ![](pics/a1.png)
+
 ![](pics/a2.png)
+
 ![](pics/a3.png)
 
 ## Credits
