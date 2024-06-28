@@ -50,13 +50,13 @@ class Node:
 
 
 class SIPPSNode:
-    def __init__(self, n: Node, si: Tuple[int, int], _id: int, is_goal: bool, parent: Self | None = None):
+    def __init__(self, n: Node, si: List[int], _id: int, is_goal: bool, parent: Self | None = None):
         self.x: int = n.x
         self.y: int = n.y
         self.n = n
         # self.xy_name: str = f'{self.x}_{self.y}'
         self.xy_name: str = self.n.xy_name
-        self.si: Tuple[int, int] = si
+        self.si: List[int] = [si[0], si[1]]
         self._id: int = _id
         self.is_goal: bool = is_goal
         self.parent: Self = parent
@@ -73,6 +73,12 @@ class SIPPSNode:
     @property
     def high(self):
         return self.si[1]
+
+    def set_low(self, new_v: int):
+        self.si[0] = new_v
+
+    def set_high(self, new_v: int):
+        self.si[1] = new_v
 
     def __lt__(self, other: Self):
         if self.c < other.c:
@@ -419,6 +425,74 @@ def extract_path(next_sipps_node: SIPPSNode) -> List[Node]:
         parent = parent.parent
     path.reverse()
     return path
+
+
+def get_c_future(
+        goal_node: Node,
+        t: int,
+        vc_soft_np: np.ndarray,
+        pc_soft_np: np.ndarray
+) -> int:
+    out_value = 0
+    pc_value = pc_soft_np[goal_node.x, goal_node.y]
+    if pc_value != -1:
+        out_value += 1
+    vc_values = vc_soft_np[goal_node.x, goal_node.y, t:]
+    out_value += np.sum(vc_values)
+    return out_value
+
+
+def duplicate_sipps_node(node: SIPPSNode) -> SIPPSNode:
+    """
+    def __init__(self, n: Node, si: Tuple[int, int], _id: int, is_goal: bool, parent: Self | None = None):
+    self.x: int = n.x
+    self.y: int = n.y
+    self.n = n
+    self.xy_name: str = self.n.xy_name
+    self.si: Tuple[int, int] = si
+    self._id: int = _id
+    self.is_goal: bool = is_goal
+    self.parent: Self = parent
+
+    self.g: int = 0
+    self.h: int = 0
+    self.f: int = 0
+    self.c: int = 0
+    """
+    return_node = SIPPSNode(
+        node.n,
+        node.si,
+        node._id,
+        node.is_goal,
+        node.parent
+    )
+    return_node.g = node.g
+    return_node.h = node.h
+    return_node.f = node.f
+    return_node.c = node.c
+
+    return return_node
+
+
+def get_identical_nodes(
+        node: SIPPSNode,
+        Q: List[SIPPSNode],
+        P: List[SIPPSNode],
+) -> List[SIPPSNode]:
+    """
+    Two nodes n1 and n2 have the same identity, denoted as n1 ∼ n2, iff:
+    (1) n1.v = n2.v
+    (2) n1.id = n2.id
+    (3) n1.is_goal = n2.is_goal
+    """
+    identical_nodes: List[SIPPSNode] = []
+    curr_xy_name = node.xy_name
+    curr_id = node._id
+    curr_is_goal = node.is_goal
+    for n in [*Q, *P]:
+        if n.xy_name == curr_xy_name and n._id == curr_id and n.is_goal == curr_is_goal:
+            identical_nodes.append(n)
+    return identical_nodes
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
