@@ -50,7 +50,7 @@ class Node:
 
 
 class SIPPSNode:
-    def __init__(self, n: Node, si: List[int], _id: int, is_goal: bool, parent: Self | None = None):
+    def __init__(self, n: Node, si: Tuple[int, int], _id: int, is_goal: bool, parent: Self | None = None):
         self.x: int = n.x
         self.y: int = n.y
         self.n = n
@@ -73,6 +73,10 @@ class SIPPSNode:
     @property
     def high(self):
         return self.si[1]
+
+    @property
+    def id(self):
+        return self._id
 
     def set_low(self, new_v: int):
         self.si[0] = new_v
@@ -461,8 +465,8 @@ def duplicate_sipps_node(node: SIPPSNode) -> SIPPSNode:
     """
     return_node = SIPPSNode(
         node.n,
-        node.si,
-        node._id,
+        (node.si[0], node.si[1]),
+        node.id,
         node.is_goal,
         node.parent
     )
@@ -487,10 +491,10 @@ def get_identical_nodes(
     """
     identical_nodes: List[SIPPSNode] = []
     curr_xy_name = node.xy_name
-    curr_id = node._id
+    curr_id = node.id
     curr_is_goal = node.is_goal
     for n in [*Q, *P]:
-        if n.xy_name == curr_xy_name and n._id == curr_id and n.is_goal == curr_is_goal:
+        if n.xy_name == curr_xy_name and n.id == curr_id and n.is_goal == curr_is_goal:
             identical_nodes.append(n)
     return identical_nodes
 

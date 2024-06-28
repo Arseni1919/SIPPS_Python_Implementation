@@ -2,7 +2,7 @@ import heapq
 
 import numpy as np
 
-from sipps_main_funcitons import *
+from alg_sipps_functions import *
 
 
 def run_sipps_insert_node(
