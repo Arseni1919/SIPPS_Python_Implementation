@@ -8,6 +8,8 @@
 
 ![](pics/a3.png)
 
+![](pics/h_value.png)
+
 ## Credits
 
 - [LNS2-MAPF Paper](https://ojs.aaai.org/index.php/AAAI/article/view/21266)
