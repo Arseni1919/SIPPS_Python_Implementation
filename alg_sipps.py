@@ -1,5 +1,6 @@
 import heapq
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from alg_sipps_functions import *
@@ -33,10 +34,12 @@ def run_sipps_insert_node(
             else:
                 q.set_high(node.low)
     heapq.heappush(Q, node)
+    return
 
 
 def run_sipps_expand_node(
         node: SIPPSNode,
+        nodes_dict: Dict[str, Node],
         Q: List[SIPPSNode],
         P: List[SIPPSNode],
         si_table: Dict[str, List[Tuple[int, int]]],
@@ -44,11 +47,27 @@ def run_sipps_expand_node(
         goal_np: np.ndarray,
         T: int,
         T_tag: int,
+        ec_hard_np: np.ndarray,  # x, y, x, y, t -> bool (0/1)
         vc_soft_np: np.ndarray,  # x, y, t -> bool (0/1)
         ec_soft_np: np.ndarray,  # x, y, x, y, t -> bool (0/1)
         pc_soft_np: np.ndarray,  # x, y -> time (int)
 ):
-    pass
+    I_group: List[Tuple[Node, int]] = get_I_group(node, nodes_dict, si_table)
+    I_group_names = [(v.xy_name, i) for v, i in I_group]
+    for v_node, si_id in I_group:
+        init_low, init_high = si_table[v_node.xy_name][si_id]
+        new_low = get_low_without_hard_ec(node.n, v_node, init_low, init_high, ec_hard_np)
+        if new_low is None:
+            continue
+        new_low_tag = get_low_without_hard_and_soft_ec(node.n, v_node, new_low, init_high, ec_hard_np, ec_soft_np)
+        if new_low_tag is not None and new_low_tag > new_low:
+            n_1 = SIPPSNode(v_node, (new_low, new_low_tag), si_id, False, parent=node)
+            run_sipps_insert_node(n_1, Q, P, goal_node, goal_np, T, T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
+            n_2 = SIPPSNode(v_node, (new_low_tag, init_high), si_id, False, parent=node)
+            run_sipps_insert_node(n_2, Q, P, goal_node, goal_np, T, T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
+        else:
+            n_3 = SIPPSNode(v_node, (new_low, init_high), si_id, False, parent=node)
+            run_sipps_insert_node(n_3, Q, P, goal_node, goal_np, T, T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
 
 
 def run_sipps(
@@ -104,7 +123,8 @@ def run_sipps(
             n_tag.is_goal = True
             n_tag.c += c_future
             run_sipps_insert_node(n_tag, Q, P, goal_node, goal_np, T,  T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
-        run_sipps_expand_node(next_n, Q, P, si_table, goal_node, goal_np, T,  T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
+        run_sipps_expand_node(next_n, nodes_dict, Q, P, si_table, goal_node, goal_np, T,  T_tag,
+                              ec_hard_np, vc_soft_np, ec_soft_np, pc_soft_np)
         heapq.heappush(P, next_n)
     return None
 
@@ -144,16 +164,16 @@ def main():
     path2 = [
         nodes_dict['6_0'],
         nodes_dict['6_0'],
-        nodes_dict['6_0'],
-        nodes_dict['6_0'],
-        nodes_dict['6_1'],
-        nodes_dict['6_1'],
-        nodes_dict['6_1'],
-        nodes_dict['6_0'],
+        # nodes_dict['6_0'],
+        # nodes_dict['6_0'],
+        # nodes_dict['6_1'],
+        # nodes_dict['6_1'],
+        # nodes_dict['6_1'],
+        # nodes_dict['6_0'],
     ]
-    paths = [path1, path2]
-    max_path_len = max(map(lambda x: len(x), paths))
-    vc_hard_np, ec_hard_np, pc_hard_np = create_constraints(paths, map_dim, max_path_len)
+    h_paths = [path1, path2]
+    max_path_len = max(map(lambda x: len(x), h_paths))
+    vc_hard_np, ec_hard_np, pc_hard_np = create_constraints(h_paths, map_dim, max_path_len)
 
     path = [
         nodes_dict['7_2'],
@@ -162,18 +182,38 @@ def main():
         nodes_dict['5_2'],
         nodes_dict['4_2'],
     ]
-    paths = [path]
-    vc_soft_np, ec_soft_np, pc_soft_np = create_constraints(paths, map_dim, max_path_len)
+    s_paths = [path]
+    vc_soft_np, ec_soft_np, pc_soft_np = create_constraints(s_paths, map_dim, max_path_len)
 
     start_node = nodes_dict['6_2']
-    goal_node = nodes_dict['6_1']
+    goal_node = nodes_dict['25_25']
 
-    run_sipps(
+    result = run_sipps(
         start_node, goal_node, nodes, nodes_dict, h_dict,
         vc_hard_np, ec_hard_np, pc_hard_np, vc_soft_np, ec_soft_np, pc_soft_np
     )
 
-    print()
+    # plot
+    plot_np = np.ones(img_np.shape) * -2
+    # nodes
+    for n in nodes:
+        plot_np[n.x, n.y] = 0
+    # hard
+    for h_path in h_paths:
+        for n in h_path:
+            plot_np[n.x, n.y] = -1
+    # soft
+    for s_path in s_paths:
+        for n in s_path:
+            plot_np[n.x, n.y] = -0.5
+    # result
+    for n in result:
+        plot_np[n.x, n.y] = 1
+
+    plt.imshow(plot_np, cmap='binary', origin='lower')
+    plt.show()
+
+    print(f'{[n.xy_name for n in result]}')
 
 
 if __name__ == '__main__':

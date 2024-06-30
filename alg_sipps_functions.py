@@ -54,6 +54,8 @@ class SIPPSNode:
         self.x: int = n.x
         self.y: int = n.y
         self.n = n
+        self.neighbours = n.neighbours
+        # random.shuffle(self.neighbours)
         # self.xy_name: str = f'{self.x}_{self.y}'
         self.xy_name: str = self.n.xy_name
         self.si: List[int] = [si[0], si[1]]
@@ -497,6 +499,62 @@ def get_identical_nodes(
         if n.xy_name == curr_xy_name and n.id == curr_id and n.is_goal == curr_is_goal:
             identical_nodes.append(n)
     return identical_nodes
+
+
+def get_I_group(
+        node: SIPPSNode,
+        nodes_dict: Dict[str, Node],
+        si_table: Dict[str, List[Tuple[int, int]]],
+) -> List[Tuple[Node, int]]:
+    I_group: List[Tuple[Node, int]] = []
+    for nei_name in node.neighbours:
+        nei_si_list = si_table[nei_name]
+        if nei_name == node.xy_name:
+            for si_id, si in enumerate(nei_si_list):
+                if si[0] == node.high:
+                    I_group.append((node.n, si_id))  # indicates wait action
+                    break
+            continue
+        for si_id, si in enumerate(nei_si_list):
+            if si[0] >= node.high + 1:
+                continue
+            if node.low + 1 <= si[0] < node.high + 1:
+                I_group.append((nodes_dict[nei_name], si_id))
+                continue
+            if si[0] < node.low + 1 < si[1]:
+                I_group.append((nodes_dict[nei_name], si_id))
+                continue
+    return I_group
+
+
+def get_low_without_hard_ec(
+        from_node: Node,
+        to_node: Node,
+        init_low: int,
+        init_high: int,
+        ec_hard_np: np.ndarray,  # x, y, x, y, t -> bool (0/1)
+) -> int | None:
+    for i_t in range(init_low, init_high):
+        if ec_hard_np[to_node.x, to_node.y, from_node.x, from_node.y, i_t] == 0:
+            return i_t
+    return None
+
+
+def get_low_without_hard_and_soft_ec(
+        from_node: Node,
+        to_node: Node,
+        new_low: int,
+        init_high: int,
+        ec_hard_np: np.ndarray,  # x, y, x, y, t -> bool (0/1)
+        ec_soft_np: np.ndarray,  # x, y, x, y, t -> bool (0/1)
+) -> int | None:
+    for i_t in range(new_low, init_high):
+        no_in_h = ec_hard_np[to_node.x, to_node.y, from_node.x, from_node.y, i_t] == 0
+        no_in_s = ec_soft_np[to_node.x, to_node.y, from_node.x, from_node.y, i_t] == 0
+        if no_in_h and no_in_s:
+            return i_t
+    return None
+
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
