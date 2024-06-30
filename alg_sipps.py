@@ -23,7 +23,7 @@ def run_sipps_insert_node(
     for q in identical_nodes:
         if q.low <= node.low and q.c <= node.c:
             return
-        if node.low <= q.low and node.c <= q.c:
+        elif node.low <= q.low and node.c <= q.c:
             if q in Q:
                 Q.remove(q)
             if q in P:
@@ -53,10 +53,13 @@ def run_sipps_expand_node(
         pc_soft_np: np.ndarray,  # x, y -> time (int)
 ):
     I_group: List[Tuple[Node, int]] = get_I_group(node, nodes_dict, si_table)
-    I_group_names = [(v.xy_name, i) for v, i in I_group]
+    # I_group_names = [(v.xy_name, i) for v, i in I_group]
     for v_node, si_id in I_group:
         init_low, init_high = si_table[v_node.xy_name][si_id]
         new_low = get_low_without_hard_ec(node.n, v_node, init_low, init_high, ec_hard_np)
+        new_low = max(new_low, node.g)
+        if new_low >= init_high:
+            new_low = None
         if new_low is None:
             continue
         new_low_tag = get_low_without_hard_and_soft_ec(node.n, v_node, new_low, init_high, ec_hard_np, ec_soft_np)
@@ -71,36 +74,38 @@ def run_sipps_expand_node(
 
 
 def run_sipps(
-        curr_node: Node,
+        start_node: Node,
         goal_node: Node,
         nodes: List[Node],
         nodes_dict: Dict[str, Node],
         h_dict: Dict[str, np.ndarray],
-        vc_hard_np: np.ndarray,  # x, y, t -> bool (0/1)
-        ec_hard_np: np.ndarray,  # x, y, x, y, t -> bool (0/1)
-        pc_hard_np: np.ndarray,  # x, y -> time (int)
-        vc_soft_np: np.ndarray,  # x, y, t -> bool (0/1)
-        ec_soft_np: np.ndarray,  # x, y, x, y, t -> bool (0/1)
-        pc_soft_np: np.ndarray,  # x, y -> time (int)
+        vc_hard_np: np.ndarray | None,  # x, y, t -> bool (0/1)
+        ec_hard_np: np.ndarray | None,  # x, y, x, y, t -> bool (0/1)
+        pc_hard_np: np.ndarray | None,  # x, y -> time (int)
+        vc_soft_np: np.ndarray | None,  # x, y, t -> bool (0/1)
+        ec_soft_np: np.ndarray | None,  # x, y, x, y, t -> bool (0/1)
+        pc_soft_np: np.ndarray | None,  # x, y -> time (int)
         inf_num: int = int(1e10)
-) -> List[Node] | None:
+) -> Tuple[List[Node] | None, dict]:
 
-    assert vc_hard_np.shape[2] == vc_soft_np.shape[2]
-    assert ec_hard_np.shape[4] == ec_soft_np.shape[4]
-    assert int(max(np.max(pc_hard_np), np.max(pc_soft_np))) + 1 == vc_hard_np.shape[2]
-    assert int(max(np.max(pc_hard_np), np.max(pc_soft_np))) + 1 == ec_hard_np.shape[4]
-    assert pc_hard_np[goal_node.x, goal_node.y] != 1
+    if vc_hard_np is not None and vc_soft_np is not None:
+        assert vc_hard_np.shape[2] == vc_soft_np.shape[2]
+        assert ec_hard_np.shape[4] == ec_soft_np.shape[4]
+        # assert int(max(np.max(pc_hard_np), np.max(pc_soft_np))) + 1 == vc_hard_np.shape[2]
+        # assert int(max(np.max(pc_hard_np), np.max(pc_soft_np))) + 1 == ec_hard_np.shape[4]
+    if pc_hard_np is not None:
+        assert pc_hard_np[goal_node.x, goal_node.y] == -1
 
-    if pc_hard_np[goal_node.x, goal_node.y] == 1:
-        return None
+    if pc_hard_np is not None and pc_hard_np[goal_node.x, goal_node.y] == 1:
+        return None, {}
 
     si_table: Dict[str, List[Tuple[int, int]]] = get_si_table(nodes, nodes_dict, vc_hard_np, pc_hard_np, vc_soft_np, pc_soft_np, inf_num)
-    root = SIPPSNode(curr_node, si_table[curr_node.xy_name][0], 0, False)
+    root = SIPPSNode(start_node, si_table[start_node.xy_name][0], 0, False)
     T = 0
-    goal_vc_times_list = get_o_h(goal_node, vc_hard_np)
+    goal_vc_times_list = get_vc_list(goal_node, vc_hard_np)
     if len(goal_vc_times_list) > 0:
         T = max(goal_vc_times_list) + 1
-    goal_vc_times_list = get_o_h(goal_node, vc_soft_np)
+    goal_vc_times_list = get_vc_list(goal_node, vc_soft_np)
     T_tag = T
     if len(goal_vc_times_list) > 0:
         T_tag = max(T, max(goal_vc_times_list) + 1)
@@ -114,11 +119,17 @@ def run_sipps(
     while len(Q) > 0:
         next_n: SIPPSNode = heapq.heappop(Q)
         if next_n.is_goal:
-            return extract_path(next_n)
+            nodes_path, sipps_path = extract_path(next_n)
+            return nodes_path, {
+                'T': T, 'T_tag': T_tag, 'Q': Q, 'P': P, 'si_table': si_table, 'r_type': 'is_goal', 'sipps_path': sipps_path
+            }
         if next_n.n == goal_node and next_n.low >= T:
             c_future = get_c_future(goal_node, next_n.low, vc_soft_np, pc_soft_np)
             if c_future == 0:
-                return extract_path(next_n)
+                nodes_path, sipps_path = extract_path(next_n)
+                return nodes_path, {
+                    'T': T, 'T_tag': T_tag, 'Q': Q, 'P': P, 'si_table': si_table, 'r_type': 'c_future=0', 'sipps_path': sipps_path
+                }
             n_tag = duplicate_sipps_node(next_n)
             n_tag.is_goal = True
             n_tag.c += c_future
@@ -126,7 +137,7 @@ def run_sipps(
         run_sipps_expand_node(next_n, nodes_dict, Q, P, si_table, goal_node, goal_np, T,  T_tag,
                               ec_hard_np, vc_soft_np, ec_soft_np, pc_soft_np)
         heapq.heappush(P, next_n)
-    return None
+    return None, {}
 
 
 
@@ -188,32 +199,32 @@ def main():
     start_node = nodes_dict['6_2']
     goal_node = nodes_dict['25_25']
 
-    result = run_sipps(
+    result, info = run_sipps(
         start_node, goal_node, nodes, nodes_dict, h_dict,
         vc_hard_np, ec_hard_np, pc_hard_np, vc_soft_np, ec_soft_np, pc_soft_np
     )
 
     # plot
-    plot_np = np.ones(img_np.shape) * -2
-    # nodes
-    for n in nodes:
-        plot_np[n.x, n.y] = 0
-    # hard
-    for h_path in h_paths:
-        for n in h_path:
-            plot_np[n.x, n.y] = -1
-    # soft
-    for s_path in s_paths:
-        for n in s_path:
-            plot_np[n.x, n.y] = -0.5
-    # result
-    for n in result:
-        plot_np[n.x, n.y] = 1
+    if to_render:
+        print(f'{[n.xy_name for n in result]}')
+        plot_np = np.ones(img_np.shape) * -2
+        # nodes
+        for n in nodes:
+            plot_np[n.x, n.y] = 0
+        # hard
+        for h_path in h_paths:
+            for n in h_path:
+                plot_np[n.x, n.y] = -1
+        # soft
+        for s_path in s_paths:
+            for n in s_path:
+                plot_np[n.x, n.y] = -0.5
+        # result
+        for n in result:
+            plot_np[n.x, n.y] = 1
 
-    plt.imshow(plot_np, cmap='binary', origin='lower')
-    plt.show()
-
-    print(f'{[n.xy_name for n in result]}')
+        plt.imshow(plot_np, cmap='binary', origin='lower')
+        plt.show()
 
 
 if __name__ == '__main__':
