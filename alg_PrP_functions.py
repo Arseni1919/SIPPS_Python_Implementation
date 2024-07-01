@@ -14,8 +14,11 @@ class AgentPrP:
         self.num = num
         self.name = f'agent_{num}'
         self.start_node: Node = start_node
+        self.start_node_name: str = self.start_node.xy_name
         self.curr_node: Node = start_node
+        self.curr_node_name: str = self.curr_node.xy_name
         self.goal_node: Node = goal_node
+        self.goal_node_name: str = self.goal_node.xy_name
         self.path: List[Node] | None = None
 
     @property

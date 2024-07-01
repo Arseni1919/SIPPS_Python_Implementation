@@ -17,6 +17,7 @@ def run_sipps_insert_node(
         vc_soft_np: np.ndarray,  # x, y, t -> bool (0/1)
         ec_soft_np: np.ndarray,  # x, y, x, y, t -> bool (0/1)
         pc_soft_np: np.ndarray,  # x, y -> time (int)
+        agent=None,
 ) -> None:
     compute_c_g_h_f_values(node, goal_node, goal_np, T, T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
     identical_nodes = get_identical_nodes(node, Q, P)
@@ -51,19 +52,17 @@ def run_sipps_expand_node(
         vc_soft_np: np.ndarray,  # x, y, t -> bool (0/1)
         ec_soft_np: np.ndarray,  # x, y, x, y, t -> bool (0/1)
         pc_soft_np: np.ndarray,  # x, y -> time (int)
+        agent=None
 ):
     I_group: List[Tuple[Node, int]] = get_I_group(node, nodes_dict, si_table)
-    # I_group_names = [(v.xy_name, i) for v, i in I_group]
+    I_group_names = [(v.xy_name, i, si_table[v.xy_name][i]) for v, i in I_group]
     for v_node, si_id in I_group:
         init_low, init_high = si_table[v_node.xy_name][si_id]
-        new_low = get_low_without_hard_ec(node.n, v_node, init_low, init_high, ec_hard_np)
-        new_low = max(new_low, node.g)
-        if new_low >= init_high:
-            new_low = None
+        new_low = get_low_without_hard_ec(node, node.n, v_node, init_low, init_high, ec_hard_np)
         if new_low is None:
             continue
-        new_low_tag = get_low_without_hard_and_soft_ec(node.n, v_node, new_low, init_high, ec_hard_np, ec_soft_np)
-        if new_low_tag is not None and new_low_tag > new_low:
+        new_low_tag = get_low_without_hard_and_soft_ec(node, node.n, v_node, new_low, init_high, ec_hard_np, ec_soft_np)
+        if new_low_tag is not None and new_low < new_low_tag < init_high:
             n_1 = SIPPSNode(v_node, (new_low, new_low_tag), si_id, False, parent=node)
             run_sipps_insert_node(n_1, Q, P, goal_node, goal_np, T, T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
             n_2 = SIPPSNode(v_node, (new_low_tag, init_high), si_id, False, parent=node)
@@ -85,7 +84,8 @@ def run_sipps(
         vc_soft_np: np.ndarray | None,  # x, y, t -> bool (0/1)
         ec_soft_np: np.ndarray | None,  # x, y, x, y, t -> bool (0/1)
         pc_soft_np: np.ndarray | None,  # x, y -> time (int)
-        inf_num: int = int(1e10)
+        inf_num: int = int(1e10),
+        agent=None
 ) -> Tuple[List[Node] | None, dict]:
 
     if vc_hard_np is not None and vc_soft_np is not None:
@@ -117,30 +117,35 @@ def run_sipps(
     heapq.heappush(Q, root)
 
     while len(Q) > 0:
+        print(f'\r{len(Q)=}, {len(P)=}', end='')
         next_n: SIPPSNode = heapq.heappop(Q)
         if next_n.is_goal:
-            nodes_path, sipps_path = extract_path(next_n)
+            nodes_path, sipps_path = extract_path(next_n, agent=agent)
             return nodes_path, {
-                'T': T, 'T_tag': T_tag, 'Q': Q, 'P': P, 'si_table': si_table, 'r_type': 'is_goal', 'sipps_path': sipps_path
+                'T': T, 'T_tag': T_tag, 'Q': Q, 'P': P, 'si_table': si_table, 'r_type': 'is_goal',
+                'sipps_path': sipps_path, 'sipps_path_names': [n.to_print() for n in sipps_path],
             }
         if next_n.n == goal_node and next_n.low >= T:
             c_future = get_c_future(goal_node, next_n.low, vc_soft_np, pc_soft_np)
             if c_future == 0:
-                nodes_path, sipps_path = extract_path(next_n)
+                nodes_path, sipps_path = extract_path(next_n, agent=agent)
+                nodes_path_names = [n.xy_name for n in nodes_path]
+                sipps_path_names = [n.to_print() for n in sipps_path]
                 return nodes_path, {
-                    'T': T, 'T_tag': T_tag, 'Q': Q, 'P': P, 'si_table': si_table, 'r_type': 'c_future=0', 'sipps_path': sipps_path
+                    'T': T, 'T_tag': T_tag, 'Q': Q, 'P': P, 'si_table': si_table, 'r_type': 'c_future=0',
+                    'sipps_path': sipps_path, 'sipps_path_names': sipps_path_names,
                 }
             n_tag = duplicate_sipps_node(next_n)
             n_tag.is_goal = True
             n_tag.c += c_future
             run_sipps_insert_node(n_tag, Q, P, goal_node, goal_np, T,  T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
         run_sipps_expand_node(next_n, nodes_dict, Q, P, si_table, goal_node, goal_np, T,  T_tag,
-                              ec_hard_np, vc_soft_np, ec_soft_np, pc_soft_np)
+                              ec_hard_np, vc_soft_np, ec_soft_np, pc_soft_np, agent)
         heapq.heappush(P, next_n)
     return None, {}
 
 
-
+@use_profiler(save_dir='stats/alg_sipps.pstat')
 def main():
     # set_seed(random_seed_bool=False, seed=7310)
     # set_seed(random_seed_bool=False, seed=123)

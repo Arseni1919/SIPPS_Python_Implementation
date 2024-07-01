@@ -228,6 +228,23 @@ def ranges_intersect(range1, range2):
     start2, end2 = range2
     return start1 <= end2 and start2 <= end1
 
+
+def use_profiler(save_dir):
+    def decorator(func):
+        def inner1(*args, **kwargs):
+            profiler = cProfile.Profile()
+            profiler.enable()
+            # getting the returned value
+            returned_value = func(*args, **kwargs)
+            profiler.disable()
+            stats = pstats.Stats(profiler).sort_stats('cumtime')
+            stats.dump_stats(save_dir)
+            # returning the value to the original frame
+            return returned_value
+        return inner1
+    return decorator
+
+
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #

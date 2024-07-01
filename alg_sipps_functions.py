@@ -41,6 +41,9 @@ class SIPPSNode:
     def id(self):
         return self._id
 
+    def to_print(self):
+        return f'{self.xy_name}[{self._id}], g={self.g}, low={self.low}, high={self.high}, c={self.c}, h={self.h}'
+
     def set_low(self, new_v: int):
         self.si[0] = new_v
 
@@ -220,7 +223,7 @@ def compute_c_g_h_f_values(
     if sipps_node.parent is None:
         sipps_node.g = 0
     else:
-        sipps_node.g = sipps_node.parent.g + 1
+        sipps_node.g = max(sipps_node.low, sipps_node.parent.g + 1)
 
     # h
     if sipps_node.xy_name != goal_node.xy_name:
@@ -237,7 +240,7 @@ def compute_c_g_h_f_values(
     sipps_node.f = sipps_node.g + sipps_node.h
 
 
-def extract_path(next_sipps_node: SIPPSNode) -> Tuple[List[Node], Deque[SIPPSNode]]:
+def extract_path(next_sipps_node: SIPPSNode, agent=None) -> Tuple[List[Node], Deque[SIPPSNode]]:
     sipps_path: Deque[SIPPSNode] = deque([next_sipps_node])
     sipps_path_save: Deque[SIPPSNode] = deque([next_sipps_node])
     parent = next_sipps_node.parent
@@ -246,13 +249,14 @@ def extract_path(next_sipps_node: SIPPSNode) -> Tuple[List[Node], Deque[SIPPSNod
         sipps_path_save.appendleft(parent)
         parent = parent.parent
 
+    sipps_path_names: List[str] = [n.to_print() for n in sipps_path]
     path_with_waiting: List[Node] = []
     while len(sipps_path) > 0:
         next_node = sipps_path.popleft()
         path_with_waiting.append(next_node.n)
         if len(sipps_path) == 0:
             break
-        if len(path_with_waiting) - 1 < sipps_path[0].low:
+        while len(path_with_waiting) < sipps_path[0].low:
             path_with_waiting.append(path_with_waiting[-1])
     return path_with_waiting, sipps_path_save
 
@@ -347,6 +351,7 @@ def get_I_group(
 
 
 def get_low_without_hard_ec(
+        prev_sipps_node: SIPPSNode,
         from_node: Node,
         to_node: Node,
         init_low: int,
@@ -354,14 +359,19 @@ def get_low_without_hard_ec(
         ec_hard_np: np.ndarray,  # x, y, x, y, t -> bool (0/1)
 ) -> int | None:
     for i_t in range(init_low, init_high):
+        if i_t < prev_sipps_node.low + 1:
+            continue
+        if i_t >= prev_sipps_node.high:
+            return None
         if i_t >= ec_hard_np.shape[4]:
-            return 0
+            return prev_sipps_node.g + 1
         if ec_hard_np[to_node.x, to_node.y, from_node.x, from_node.y, i_t] == 0:
             return i_t
     return None
 
 
 def get_low_without_hard_and_soft_ec(
+        prev_sipps_node: SIPPSNode,
         from_node: Node,
         to_node: Node,
         new_low: int,
@@ -370,8 +380,12 @@ def get_low_without_hard_and_soft_ec(
         ec_soft_np: np.ndarray,  # x, y, x, y, t -> bool (0/1)
 ) -> int | None:
     for i_t in range(new_low, init_high):
+        if i_t < prev_sipps_node.low + 1:
+            continue
+        if i_t >= prev_sipps_node.high:
+            return None
         if i_t >= ec_hard_np.shape[4]:
-            return 0
+            return prev_sipps_node.g + 1
         no_in_h = ec_hard_np[to_node.x, to_node.y, from_node.x, from_node.y, i_t] == 0
         no_in_s = ec_soft_np[to_node.x, to_node.y, from_node.x, from_node.y, i_t] == 0
         if no_in_h and no_in_s:

@@ -8,14 +8,14 @@ from alg_sipps import run_sipps
 
 
 def run_prp(
-    start_nodes: List[Node],
+        start_nodes: List[Node],
         goal_nodes: List[Node],
         nodes: List[Node],
         nodes_dict: Dict[str, Node],
         h_dict: Dict[str, np.ndarray],
         map_dim: Tuple[int, int],
-        constr_type: str = 'hard',
-        # constr_type: str = 'soft',
+        # constr_type: str = 'hard',
+        constr_type: str = 'soft',
         time_limit: int = 60  # seconds
 ) -> Tuple[Dict[str, List[Node]] | None, dict]:
     start_time = time.time()
@@ -35,13 +35,17 @@ def run_prp(
              vc_soft_np, ec_soft_np, pc_soft_np) = create_hard_and_soft_constraints(h_priority_agents, map_dim, constr_type)
             new_path, sipps_info = run_sipps(
                 agent.start_node, agent.goal_node, nodes, nodes_dict, h_dict,
-                vc_hard_np, ec_hard_np, pc_hard_np, vc_soft_np, ec_soft_np, pc_soft_np
+                vc_hard_np, ec_hard_np, pc_hard_np, vc_soft_np, ec_soft_np, pc_soft_np, agent=agent
             )
+            if new_path is None:
+                agent.path = None
+                break
             agent.path = new_path[:]
             h_priority_agents.append(agent)
 
             # checks
-            print(f'\r{r_iter=} | agents: {len(h_priority_agents)} / {len(agents)}', end='')
+            runtime = time.time() - start_time
+            print(f'\r{r_iter=: <3} | agents: {len(h_priority_agents): <3} / {len(agents)} | {runtime= : .2f} s.')  # , end=''
             align_all_paths(h_priority_agents)
             for i in range(len(h_priority_agents[0].path)):
                 check_vc_ec_neic_iter(h_priority_agents, i)
@@ -49,6 +53,9 @@ def run_prp(
         # return check
         to_return = True
         for agent in agents:
+            if agent.path is None:
+                to_return = False
+                break
             if agent.path[-1] != agent.goal_node:
                 to_return = False
                 break
@@ -64,20 +71,21 @@ def run_prp(
     return None, {}
 
 
+@use_profiler(save_dir='stats/alg_prp.pstat')
 def main():
     # set_seed(random_seed_bool=False, seed=7310)
     set_seed(random_seed_bool=False, seed=123)
     # set_seed(random_seed_bool=True)
 
     # img_dir = '10_10_my_rand.map'
-    img_dir = 'empty-32-32.map'
+    # img_dir = 'empty-32-32.map'
     # img_dir = 'random-32-32-10.map'
     # img_dir = 'random-32-32-20.map'
     # img_dir = 'room-32-32-4.map'
     # img_dir = 'maze-32-32-2.map'
-    # img_dir = 'maze-32-32-4.map'
+    img_dir = 'maze-32-32-4.map'
 
-    n_agents = 10
+    n_agents = 50
 
     to_render: bool = True
     # to_render: bool = False
@@ -98,11 +106,13 @@ def main():
     )
 
     # plot
-    if to_render:
+    if to_render and paths_dict is not None:
         agents: List[AgentPrP] = info['agents']
         plt.close()
         fig, ax = plt.subplots(1, 2, figsize=(14, 7))
         plot_rate = 0.001
+        # plot_rate = 0.5
+        # plot_rate = 1
         max_path_len = max([len(a.path) for a in agents])
 
         for i in range(max_path_len):
