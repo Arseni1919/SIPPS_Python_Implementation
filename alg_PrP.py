@@ -18,6 +18,7 @@ def run_prp(
         constr_type: str = 'soft',
         time_limit: int = 60  # seconds
 ) -> Tuple[Dict[str, List[Node]] | None, dict]:
+
     start_time = time.time()
 
     # create agents
@@ -46,9 +47,13 @@ def run_prp(
             # checks
             runtime = time.time() - start_time
             print(f'\r{r_iter=: <3} | agents: {len(h_priority_agents): <3} / {len(agents)} | {runtime= : .2f} s.')  # , end=''
+            collisions: int = 0
             align_all_paths(h_priority_agents)
             for i in range(len(h_priority_agents[0].path)):
-                check_vc_ec_neic_iter(h_priority_agents, i)
+                to_count = False if constr_type == 'hard' else True
+                collisions += check_vc_ec_neic_iter(h_priority_agents, i, to_count)
+            if collisions > 0:
+                print(f'{collisions=} | {sipps_info['c']=}')
 
         # return check
         to_return = True

@@ -38,3 +38,36 @@ class AgentLNS2:
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
+def create_hard_and_soft_constraints(h_priority_agents: List[AgentLNS2], map_dim: Tuple[int, int], constr_type: str):
+    assert constr_type in ['hard', 'soft']
+    if len(h_priority_agents) == 0:
+        max_path_len = 1
+        vc_hard_np, ec_hard_np, pc_hard_np = init_constraints(map_dim, max_path_len)
+        vc_soft_np, ec_soft_np, pc_soft_np = init_constraints(map_dim, max_path_len)
+        # vc_hard_np, ec_hard_np, pc_hard_np = None, None, None
+        # vc_soft_np, ec_soft_np, pc_soft_np = None, None, None
+        return vc_hard_np, ec_hard_np, pc_hard_np, vc_soft_np, ec_soft_np, pc_soft_np
+    max_path_len = max([len(a.path) for a in h_priority_agents])
+    paths = [a.path for a in h_priority_agents]
+    if constr_type == 'hard':
+        vc_hard_np, ec_hard_np, pc_hard_np = create_constraints(paths, map_dim, max_path_len)
+        vc_soft_np, ec_soft_np, pc_soft_np = init_constraints(map_dim, max_path_len)
+        # vc_soft_np, ec_soft_np, pc_soft_np = None, None, None
+    elif constr_type == 'soft':
+        vc_hard_np, ec_hard_np, pc_hard_np = init_constraints(map_dim, max_path_len)
+        # vc_hard_np, ec_hard_np, pc_hard_np = None, None, None
+        vc_soft_np, ec_soft_np, pc_soft_np = create_constraints(paths, map_dim, max_path_len)
+    else:
+        raise RuntimeError('nope')
+    return vc_hard_np, ec_hard_np, pc_hard_np, vc_soft_np, ec_soft_np, pc_soft_np
+
+
+
+
+
+
+
+
+
+
+

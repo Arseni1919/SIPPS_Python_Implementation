@@ -54,11 +54,11 @@ def run_sipps_expand_node(
         pc_soft_np: np.ndarray,  # x, y -> time (int)
         agent=None
 ):
-    I_group: List[Tuple[Node, int]] = get_I_group(node, nodes_dict, si_table)
+    I_group: List[Tuple[Node, int]] = get_I_group(node, nodes_dict, si_table, agent)
     I_group_names = [(v.xy_name, i, si_table[v.xy_name][i]) for v, i in I_group]
     for v_node, si_id in I_group:
         init_low, init_high = si_table[v_node.xy_name][si_id]
-        new_low = get_low_without_hard_ec(node, node.n, v_node, init_low, init_high, ec_hard_np)
+        new_low = get_low_without_hard_ec(node, node.n, v_node, init_low, init_high, ec_hard_np, agent)
         if new_low is None:
             continue
         new_low_tag = get_low_without_hard_and_soft_ec(node, node.n, v_node, new_low, init_high, ec_hard_np, ec_soft_np)
@@ -121,9 +121,10 @@ def run_sipps(
         next_n: SIPPSNode = heapq.heappop(Q)
         if next_n.is_goal:
             nodes_path, sipps_path = extract_path(next_n, agent=agent)
+            sipps_path_names = [n.to_print() for n in sipps_path]
             return nodes_path, {
                 'T': T, 'T_tag': T_tag, 'Q': Q, 'P': P, 'si_table': si_table, 'r_type': 'is_goal',
-                'sipps_path': sipps_path, 'sipps_path_names': [n.to_print() for n in sipps_path],
+                'sipps_path': sipps_path, 'sipps_path_names': sipps_path_names, 'c': next_n.c,
             }
         if next_n.n == goal_node and next_n.low >= T:
             c_future = get_c_future(goal_node, next_n.low, vc_soft_np, pc_soft_np)
@@ -133,7 +134,7 @@ def run_sipps(
                 sipps_path_names = [n.to_print() for n in sipps_path]
                 return nodes_path, {
                     'T': T, 'T_tag': T_tag, 'Q': Q, 'P': P, 'si_table': si_table, 'r_type': 'c_future=0',
-                    'sipps_path': sipps_path, 'sipps_path_names': sipps_path_names,
+                    'sipps_path': sipps_path, 'sipps_path_names': sipps_path_names, 'c': next_n.c,
                 }
             n_tag = duplicate_sipps_node(next_n)
             n_tag.is_goal = True

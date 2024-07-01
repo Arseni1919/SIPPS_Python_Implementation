@@ -206,10 +206,15 @@ def align_all_paths(agents: List) -> int:
     return max_len
 
 
-def check_vc_ec_neic_iter(agents: list | Deque, iteration: int) -> None:
+def check_vc_ec_neic_iter(agents: list | Deque, iteration: int, to_count: bool = False) -> int:
+    collisions: int = 0
     for a1, a2 in combinations(agents, 2):
         # vertex conf
-        assert a1.path[iteration] != a2.path[iteration], f'[i: {iteration}] vertex conf: {a1.name}-{a2.name} in {a1.path[iteration].xy_name}'
+        if not to_count:
+            assert a1.path[iteration] != a2.path[iteration], f'[i: {iteration}] vertex conf: {a1.name}-{a2.name} in {a1.path[iteration].xy_name}'
+        else:
+            if a1.path[iteration] == a2.path[iteration]:
+                collisions += 1
         # edge conf
         prev_node1 = a1.path[max(0, iteration - 1)]
         curr_node1 = a1.path[iteration]
@@ -217,10 +222,15 @@ def check_vc_ec_neic_iter(agents: list | Deque, iteration: int) -> None:
         curr_node2 = a2.path[iteration]
         edge1 = (prev_node1.x, prev_node1.y, curr_node1.x, curr_node1.y)
         edge2 = (curr_node2.x, curr_node2.y, prev_node2.x, prev_node2.y)
-        assert edge1 != edge2, f'[i: {iteration}] edge collision: {a1.name}-{a2.name} in {edge1}'
         # nei conf
         assert a1.path[iteration].xy_name in a1.path[max(0, iteration - 1)].neighbours, f'[i: {iteration}] wow wow wow! Not nei pos!'
+        if not to_count:
+            assert edge1 != edge2, f'[i: {iteration}] edge collision: {a1.name}-{a2.name} in {edge1}'
+        else:
+            if edge1 == edge2:
+                collisions += 1
     assert agents[-1].path[iteration].xy_name in agents[-1].path[max(0, iteration - 1)].neighbours, f'[i: {iteration}] wow wow wow! Not nei pos!'
+    return collisions
 
 
 def ranges_intersect(range1, range2):

@@ -167,13 +167,22 @@ def get_vc_list(
     return vc_list
 
 
+def get_c_p(
+        sipps_node: SIPPSNode,
+        pc_soft_np: np.ndarray,  # x, y -> time (int)
+):
+    if pc_soft_np[sipps_node.x, sipps_node.y] >= sipps_node.low:
+        return 1
+    return 0
+
+
 def get_c_v(
         sipps_node: SIPPSNode,
         vc_soft_np: np.ndarray,  # x, y, t -> bool (0/1)
         pc_soft_np: np.ndarray,  # x, y -> time (int)
 ) -> int:
-    if pc_soft_np[sipps_node.x, sipps_node.y] >= sipps_node.low:
-        return 1
+    # if pc_soft_np[sipps_node.x, sipps_node.y] >= sipps_node.low:
+    #     return 1
     vc_si_list = vc_soft_np[sipps_node.x, sipps_node.y, sipps_node.low: sipps_node.high]
     if np.sum(vc_si_list) > 0:
         return 1
@@ -184,8 +193,6 @@ def get_c_e(
         sipps_node: SIPPSNode,
         ec_soft_np: np.ndarray,  # x, y, x, y, t -> bool (0/1)
 ) -> int:
-    if sipps_node.parent is None:
-        return 0
     parent = sipps_node.parent
     if sipps_node.low < ec_soft_np.shape[4] and ec_soft_np[sipps_node.x, sipps_node.y, parent.x, parent.y, sipps_node.low] == 1:
         return 1
@@ -213,11 +220,12 @@ def compute_c_g_h_f_values(
     If n is the root node (i.e., n` does not exist), c(n) = cv.
     """
     c_v = get_c_v(sipps_node, vc_soft_np, pc_soft_np)
+    c_p = get_c_p(sipps_node, pc_soft_np)
     if sipps_node.parent is None:
-        sipps_node.c = c_v
+        sipps_node.c = c_v + c_p
     else:
         c_e = get_c_e(sipps_node, ec_soft_np)
-        sipps_node.c = sipps_node.parent.c + c_v + c_e
+        sipps_node.c = sipps_node.parent.c + c_v + c_p + c_e
 
     # g
     if sipps_node.parent is None:
@@ -333,6 +341,7 @@ def get_I_group(
         node: SIPPSNode,
         nodes_dict: Dict[str, Node],
         si_table: Dict[str, List[Tuple[int, int]]],
+        agent=None
 ) -> List[Tuple[Node, int]]:
     I_group: List[Tuple[Node, int]] = []
     for nei_name in node.neighbours:
@@ -357,11 +366,12 @@ def get_low_without_hard_ec(
         init_low: int,
         init_high: int,
         ec_hard_np: np.ndarray,  # x, y, x, y, t -> bool (0/1)
+        agent=None
 ) -> int | None:
     for i_t in range(init_low, init_high):
         if i_t < prev_sipps_node.low + 1:
             continue
-        if i_t >= prev_sipps_node.high:
+        if i_t > prev_sipps_node.high:
             return None
         if i_t >= ec_hard_np.shape[4]:
             return prev_sipps_node.g + 1
@@ -382,7 +392,7 @@ def get_low_without_hard_and_soft_ec(
     for i_t in range(new_low, init_high):
         if i_t < prev_sipps_node.low + 1:
             continue
-        if i_t >= prev_sipps_node.high:
+        if i_t > prev_sipps_node.high:
             return None
         if i_t >= ec_hard_np.shape[4]:
             return prev_sipps_node.g + 1
