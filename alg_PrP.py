@@ -14,8 +14,8 @@ def run_prp(
         nodes_dict: Dict[str, Node],
         h_dict: Dict[str, np.ndarray],
         map_dim: Tuple[int, int],
-        # constr_type: str = 'hard',
-        constr_type: str = 'soft',
+        constr_type: str = 'hard',
+        # constr_type: str = 'soft',
         time_limit: int = 60  # seconds
 ) -> Tuple[Dict[str, List[Node]] | None, dict]:
 
@@ -86,11 +86,11 @@ def main():
     # img_dir = 'empty-32-32.map'
     # img_dir = 'random-32-32-10.map'
     # img_dir = 'random-32-32-20.map'
-    # img_dir = 'room-32-32-4.map'
+    img_dir = 'room-32-32-4.map'
     # img_dir = 'maze-32-32-2.map'
-    img_dir = 'maze-32-32-4.map'
+    # img_dir = 'maze-32-32-4.map'
 
-    n_agents = 50
+    n_agents = 100
 
     to_render: bool = True
     # to_render: bool = False

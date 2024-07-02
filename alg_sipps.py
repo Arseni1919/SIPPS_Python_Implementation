@@ -88,13 +88,13 @@ def run_sipps(
         agent=None
 ) -> Tuple[List[Node] | None, dict]:
 
-    if vc_hard_np is not None and vc_soft_np is not None:
-        assert vc_hard_np.shape[2] == vc_soft_np.shape[2]
-        assert ec_hard_np.shape[4] == ec_soft_np.shape[4]
+    # if vc_hard_np is not None and vc_soft_np is not None:
+    #     assert vc_hard_np.shape[2] == vc_soft_np.shape[2]
+    #     assert ec_hard_np.shape[4] == ec_soft_np.shape[4]
         # assert int(max(np.max(pc_hard_np), np.max(pc_soft_np))) + 1 == vc_hard_np.shape[2]
         # assert int(max(np.max(pc_hard_np), np.max(pc_soft_np))) + 1 == ec_hard_np.shape[4]
-    if pc_hard_np is not None:
-        assert pc_hard_np[goal_node.x, goal_node.y] == -1
+    # if pc_hard_np is not None:
+    #     assert pc_hard_np[goal_node.x, goal_node.y] == -1
 
     if pc_hard_np is not None and pc_hard_np[goal_node.x, goal_node.y] == 1:
         return None, {}

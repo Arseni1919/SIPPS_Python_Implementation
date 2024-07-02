@@ -98,8 +98,8 @@ def get_si_table(
 
     for n in nodes:
 
-        curr_pc_hard = pc_hard_np[n.x, n.y] if pc_hard_np[n.x, n.y] != -1 else inf_num
-        curr_pc_soft = pc_soft_np[n.x, n.y] if pc_soft_np[n.x, n.y] != -1 else inf_num
+        curr_pc_hard = pc_hard_np[n.x, n.y] if pc_hard_np[n.x, n.y] > -1 else inf_num
+        curr_pc_soft = pc_soft_np[n.x, n.y] if pc_soft_np[n.x, n.y] > -1 else inf_num
         v_line = []
         after_pc_hard = False
         after_pc_soft = False

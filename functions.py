@@ -199,11 +199,27 @@ def update_constraints(
 
 
 def align_all_paths(agents: List) -> int:
+    if len(agents) == 0:
+        return 1
     max_len = max([len(a.path) for a in agents])
     for a in agents:
         while len(a.path) < max_len:
             a.path.append(a.path[-1])
     return max_len
+
+
+def shorten_back_all_paths(agents: List) -> None:
+    for a in agents:
+        if len(a.path) <= 2:
+            continue
+        minus_1_node = a.path[-1]
+        minus_2_node = a.path[-2]
+        while minus_1_node == minus_2_node:
+            a.path = a.path[:-1]
+            if len(a.path) <= 2:
+                break
+            minus_1_node = a.path[-1]
+            minus_2_node = a.path[-2]
 
 
 def check_vc_ec_neic_iter(agents: list | Deque, iteration: int, to_count: bool = False) -> int:
@@ -253,6 +269,30 @@ def use_profiler(save_dir):
             return returned_value
         return inner1
     return decorator
+
+
+def two_plans_have_no_confs(path1: List[Node], path2: List[Node]):
+
+    min_len = min(len(path1), len(path2))
+    # assert len(path1) == len(path2)
+    prev1 = None
+    prev2 = None
+    bigger_path = path1 if len(path1) >= len(path2) else path2
+    smaller_path = path1 if len(path1) < len(path2) else path2
+    if smaller_path[-1] in bigger_path[len(smaller_path) - 1:]:
+        return False
+    for i, (vertex1, vertex2) in enumerate(zip(path1[:min_len], path2[:min_len])):
+        if vertex1.x == vertex2.x and vertex1.y == vertex2.y:
+            return False
+        if i > 0:
+            # edge1 = (prev1.xy_name, vertex1.xy_name)
+            # edge2 = (vertex2.xy_name, prev2.xy_name)
+            # if (prev1.x, prev1.y, vertex1.x, vertex1.y) == (vertex2.x, vertex2.y, prev2.x, prev2.y):
+            if prev1.x == vertex2.x and prev1.y == vertex2.y and vertex1.x == prev2.x and vertex1.y == prev2.y:
+                return False
+        prev1 = vertex1
+        prev2 = vertex2
+    return True
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
