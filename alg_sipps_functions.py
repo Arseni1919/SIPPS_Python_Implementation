@@ -1,3 +1,5 @@
+import numpy as np
+
 from functions import *
 
 
@@ -75,6 +77,22 @@ class SIPPSNode:
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
+def find_consecutive_slices(arr, BIG):
+    slices = []
+    start = 0
+    current_value = arr[0]
+
+    for i in range(1, len(arr)):
+        if arr[i] != current_value and arr[i] != BIG:
+            slices.append(slice(start, i + 1))
+            start = i
+            current_value = arr[i]
+
+    # Append the last slice
+    slices.append(slice(start, len(arr)))
+    return slices
+
+
 def get_si_table(
         nodes: List[Node],
         nodes_dict: Dict[str, Node],
@@ -93,37 +111,44 @@ def get_si_table(
         or
         (b) no soft vertex obstacles and no soft target obstacles at any timestep.
     """
-    si_table: Dict[str, List[Tuple[int, int]]] = {n.xy_name: [] for n in nodes}
-    max_t_len = int(max(np.max(pc_hard_np), np.max(pc_soft_np))) + 1  # index starts at 0
-
+    si_table: Dict[str, List[Tuple[int, int]]] = {n.xy_name: deque() for n in nodes}
+    max_t_len = int(max(np.max(pc_hard_np), np.max(pc_soft_np))) + 1
+    max_t_len = max(max_t_len, 1)# index starts at 0
     for n in nodes:
 
-        curr_pc_hard = pc_hard_np[n.x, n.y] if pc_hard_np[n.x, n.y] > -1 else inf_num
-        curr_pc_soft = pc_soft_np[n.x, n.y] if pc_soft_np[n.x, n.y] > -1 else inf_num
-        v_line = []
-        after_pc_hard = False
-        after_pc_soft = False
-        for i_time in range(max_t_len + 1):
-            # check pc
-            if not after_pc_hard and i_time >= curr_pc_hard:
-                after_pc_hard = True
-            if not after_pc_soft and i_time >= curr_pc_soft:
-                after_pc_soft = True
-            # check
-            if after_pc_hard:
-                v_line.append(1)
-                continue
-            if i_time < max_t_len and vc_hard_np[n.x, n.y, i_time] == 1:
-                v_line.append(1)
-                continue
-            if after_pc_soft:
-                v_line.append(0.5)
-                continue
-            if i_time < max_t_len and vc_soft_np[n.x, n.y, i_time] == 1:
-                v_line.append(0.5)
-                continue
-            v_line.append(0)
-        v_line.append(inf_num)
+        v_line_np: np.ndarray = np.zeros(max_t_len + 2)
+        # vc soft
+        mask = vc_soft_np[n.x, n.y, :] == 1
+        v_line_np[:max_t_len][mask] = 0.5
+        # pc soft
+        if pc_soft_np[n.x, n.y] > -1:
+            prep_np = np.zeros(max_t_len + 1)
+            prep_np[int(pc_soft_np[n.x, n.y]):] = 1
+            mask = prep_np == 1
+            v_line_np[:max_t_len + 1][mask] = 0.5
+        # vc hard
+        mask = vc_hard_np[n.x, n.y, :] == 1
+        v_line_np[:max_t_len][mask] = 1
+        # pc soft
+        if pc_hard_np[n.x, n.y] > -1:
+            prep_np = np.zeros(max_t_len + 1)
+            prep_np[int(pc_hard_np[n.x, n.y]):] = 1
+            mask = prep_np == 1
+            v_line_np[:max_t_len + 1][mask] = 1
+        v_line_np[-1] = inf_num
+        v_line = v_line_np
+        # v_line: list = v_line_np.tolist()
+        # v_line.append(inf_num)
+
+        # --- #
+
+        # con_slises = find_consecutive_slices(v_line, inf_num)
+        # for slice in con_slises:
+        #     si = v_line[slice]
+        #     if si[0] != 1:
+        #         start = slice.start
+        #         stop = slice.stop if si[-1] < inf_num else inf_num
+        #         si_table[n.xy_name].append((start, stop))
 
         start_si_time = 0
         started_si = False
@@ -171,22 +196,15 @@ def get_c_p(
         sipps_node: SIPPSNode,
         pc_soft_np: np.ndarray,  # x, y -> time (int)
 ):
-    if pc_soft_np[sipps_node.x, sipps_node.y] >= sipps_node.low:
-        return 1
-    return 0
+    return int(sipps_node.low <= pc_soft_np[sipps_node.x, sipps_node.y] < sipps_node.high)
 
 
 def get_c_v(
         sipps_node: SIPPSNode,
         vc_soft_np: np.ndarray,  # x, y, t -> bool (0/1)
-        pc_soft_np: np.ndarray,  # x, y -> time (int)
 ) -> int:
-    # if pc_soft_np[sipps_node.x, sipps_node.y] >= sipps_node.low:
-    #     return 1
     vc_si_list = vc_soft_np[sipps_node.x, sipps_node.y, sipps_node.low: sipps_node.high]
-    if np.sum(vc_si_list) > 0:
-        return 1
-    return 0
+    return int(np.any(vc_si_list))
 
 
 def get_c_e(
@@ -219,13 +237,18 @@ def compute_c_g_h_f_values(
     and ce is 1 if ((n`.v, n.v), n.low) ∈ Os and 0 otherwise.
     If n is the root node (i.e., n` does not exist), c(n) = cv.
     """
-    c_v = get_c_v(sipps_node, vc_soft_np, pc_soft_np)
-    c_p = get_c_p(sipps_node, pc_soft_np)
+    c_v = get_c_v(sipps_node, vc_soft_np)
+    c_v_p = c_v
+    if c_v == 0:
+        c_p = get_c_p(sipps_node, pc_soft_np)
+        c_v_p = max(c_v, c_p)
     if sipps_node.parent is None:
-        sipps_node.c = c_v + c_p
+        # sipps_node.c = c_v + c_p
+        sipps_node.c = c_v_p
     else:
         c_e = get_c_e(sipps_node, ec_soft_np)
-        sipps_node.c = sipps_node.parent.c + c_v + c_p + c_e
+        # sipps_node.c = sipps_node.parent.c + c_v + c_p + c_e
+        sipps_node.c = sipps_node.parent.c + c_v_p + c_e
 
     # g
     if sipps_node.parent is None:
