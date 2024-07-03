@@ -50,7 +50,7 @@ def run_lns2(
     # repairing procedure
     while cp_len > 0:
         print(f'\n{cp_len=}')
-        agents_subset: List[AgentLNS2] = get_agents_subset(cp_graph, cp_graph_names, n_neighbourhood, agents)
+        agents_subset: List[AgentLNS2] = get_agents_subset(cp_graph, cp_graph_names, n_neighbourhood, agents, h_dict)
         old_paths: Dict[str, List[Node]] = {a.name: a.path[:] for a in agents_subset}
         agents_outer: List[AgentLNS2] = [a for a in agents if a not in agents_subset]
 
@@ -79,14 +79,14 @@ def main():
     # set_seed(random_seed_bool=True)
 
     # img_dir = '10_10_my_rand.map'
-    # img_dir = 'empty-32-32.map'
-    img_dir = 'random-32-32-10.map'
+    img_dir = 'empty-32-32.map'
+    # img_dir = 'random-32-32-10.map'
     # img_dir = 'random-32-32-20.map'
     # img_dir = 'room-32-32-4.map'
     # img_dir = 'maze-32-32-2.map'
     # img_dir = 'maze-32-32-4.map'
 
-    n_agents = 200
+    n_agents = 300
 
     to_render: bool = True
     # to_render: bool = False

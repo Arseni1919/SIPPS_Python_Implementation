@@ -229,13 +229,13 @@ def compute_c_g_h_f_values(
 ) -> None:
     # c
     """
-    Each node n also maintains a c-value, which is
-    the (underestimated) number of the soft collisions of the partial path from the root node to node n, i.e.,
+    Each curr_node n also maintains a c-value, which is
+    the (underestimated) number of the soft collisions of the partial path from the root curr_node to curr_node n, i.e.,
     c(n) = c(n`) + cv + ce,
-    where n` is the parent node of n,
+    where n` is the parent curr_node of n,
     cv is 1 if the safe interval of n contains soft vertex/target obstacles and 0 otherwise,
     and ce is 1 if ((n`.v, n.v), n.low) ∈ Os and 0 otherwise.
-    If n is the root node (i.e., n` does not exist), c(n) = cv.
+    If n is the root curr_node (i.e., n` does not exist), c(n) = cv.
     """
     c_v = get_c_v(sipps_node, vc_soft_np)
     c_v_p = c_v
@@ -340,7 +340,7 @@ def duplicate_sipps_node(node: SIPPSNode) -> SIPPSNode:
 
 
 def get_identical_nodes(
-        node: SIPPSNode,
+        curr_node: SIPPSNode,
         Q: List[SIPPSNode],
         P: List[SIPPSNode],
 ) -> List[SIPPSNode]:
@@ -351,12 +351,18 @@ def get_identical_nodes(
     (3) n1.is_goal = n2.is_goal
     """
     identical_nodes: List[SIPPSNode] = []
-    curr_xy_name = node.xy_name
-    curr_id = node.id
-    curr_is_goal = node.is_goal
+    # curr_xy_name = curr_node.xy_name
+    curr_id = curr_node.id
+    curr_is_goal = curr_node.is_goal
     for n in [*Q, *P]:
-        if n.xy_name == curr_xy_name and n.id == curr_id and n.is_goal == curr_is_goal:
+        if n.x == curr_node.x and n.y == curr_node.y and n.id == curr_id and n.is_goal == curr_is_goal:
             identical_nodes.append(n)
+    # for n in Q:
+    #     if n.xy_name == curr_xy_name and n.id == curr_id and n.is_goal == curr_is_goal:
+    #         identical_nodes.append(n)
+    # for n in P:
+    #     if n.xy_name == curr_xy_name and n.id == curr_id and n.is_goal == curr_is_goal:
+    #         identical_nodes.append(n)
     return identical_nodes
 
 

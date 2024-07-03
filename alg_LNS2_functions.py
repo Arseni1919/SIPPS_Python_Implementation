@@ -86,7 +86,9 @@ def solve_subset_with_prp(
         # checks
         runtime = time.time() - start_time
         assert len(agents_subset) + len(outer_agents) == len(agents)
-        print(f'\r[nei calc] | agents: {len(h_priority_agents): <3} / {len(agents_subset) + len(outer_agents)} | {runtime= : .2f} s.', end='')  # , end=''
+        print(
+            f'\r[nei calc] | agents: {len(h_priority_agents): <3} / {len(agents_subset) + len(outer_agents)} | {runtime= : .2f} s.',
+            end='')  # , end=''
         # collisions: int = 0
         # align_all_paths(h_priority_agents)
         # for i in range(len(h_priority_agents[0].path)):
@@ -126,14 +128,8 @@ def create_init_solution(
 
         # checks
         runtime = time.time() - start_time
-        print(f'\r[init] | agents: {len(h_priority_agents): <3} / {len(agents)} | {runtime= : .2f} s.', end='')  # , end=''
-        # collisions: int = 0
-        # align_all_paths(h_priority_agents)
-        # for i in range(len(h_priority_agents[0].path)):
-        #     to_count = False if constr_type == 'hard' else True
-        #     collisions += check_vc_ec_neic_iter(h_priority_agents, i, to_count)
-        # if c_sum > 0:
-        #     print(f'{c_sum=}')
+        print(f'\r[init] | agents: {len(h_priority_agents): <3} / {len(agents)} | {runtime= : .2f} s.',
+              end='')  # , end=''
 
 
 def create_hard_and_soft_constraints(h_priority_agents: List[AgentLNS2], map_dim: Tuple[int, int], constr_type: str):
@@ -185,9 +181,9 @@ def get_agents_subset(
         cp_graph: Dict[str, List[AgentLNS2]],
         cp_graph_names: Dict[str, List[str]],
         n_neighbourhood: int,
-        agents: List[AgentLNS2]
+        agents: List[AgentLNS2],
+        h_dict: Dict[str, np.ndarray],
 ) -> List[AgentLNS2]:
-
     agents_with_cp: List[AgentLNS2] = [a for a in agents if a.name in cp_graph]
     curr_agent: AgentLNS2 = random.choice(agents_with_cp)
 
@@ -205,6 +201,7 @@ def get_agents_subset(
         # if there are already N agents
         if len(lcc) == n_neighbourhood:
             return lcc
+        random.shuffle(cp_graph[next_a.name])
         for nei_a in cp_graph[next_a.name]:
             if nei_a not in lcc and nei_a not in l_open:
                 l_open.append(nei_a)
@@ -213,17 +210,17 @@ def get_agents_subset(
     assert n_neighbourhood > len(lcc)
     other_agents: List[AgentLNS2] = [a for a in agents if a.name not in cp_graph]
     need_to_fill: int = n_neighbourhood - len(lcc)
-    sampled_agents = random.sample(other_agents, need_to_fill)
+    # sampled_agents = random.sample(other_agents, need_to_fill)
+
+    s_h_dict = h_dict[curr_agent.start_node.xy_name]
+    g_h_dict = h_dict[curr_agent.goal_node.xy_name]
+    # dists = [s_h_dict[a.start_node.x, a.start_node.y] + g_h_dict[a.start_node.x, a.start_node.y] for a in other_agents]
+    dists = [s_h_dict[a.start_node.x, a.start_node.y] + g_h_dict[a.start_node.x, a.start_node.y] + s_h_dict[
+        a.goal_node.x, a.goal_node.y] + g_h_dict[a.goal_node.x, a.goal_node.y] for a in other_agents]
+    biggest_dist = sum([1 / d for d in dists])
+    P = [(1 / d) / biggest_dist for d in dists]
+    sampled_agents = np.random.choice(other_agents, size=need_to_fill, replace=False, p=P)
+
     lcc.extend(sampled_agents)
 
     return lcc
-
-
-
-
-
-
-
-
-
-

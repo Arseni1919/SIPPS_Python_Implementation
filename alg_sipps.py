@@ -130,7 +130,7 @@ def run_sipps(
             c_future = get_c_future(goal_node, next_n.low, vc_soft_np, pc_soft_np)
             if c_future == 0:
                 nodes_path, sipps_path = extract_path(next_n, agent=agent)
-                nodes_path_names = [n.xy_name for n in nodes_path]
+                # nodes_path_names = [n.xy_name for n in nodes_path]
                 sipps_path_names = [n.to_print() for n in sipps_path]
                 return nodes_path, {
                     'T': T, 'T_tag': T_tag, 'Q': Q, 'P': P, 'si_table': si_table, 'r_type': 'c_future=0',
