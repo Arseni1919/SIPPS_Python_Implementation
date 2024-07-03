@@ -61,14 +61,18 @@ def run_lns2(
 
         solve_subset_with_prp(agents_subset, agents_outer, nodes, nodes_dict, h_dict, map_dim, start_time, constr_type, agents)
 
-        cp_graph, cp_graph_names = get_cp_graph(agents)
+        old_cp_graph, old_cp_graph_names = cp_graph, cp_graph_names
+        # cp_graph, cp_graph_names = get_cp_graph(agents)
+        cp_graph, cp_graph_names = get_cp_graph(agents_subset, agents_outer, cp_graph)
         if len(cp_graph) > cp_len:
             for agent in agents_subset:
                 agent.path = old_paths[agent.name]
-            cp_graph, cp_graph_names = get_cp_graph(agents)
+            cp_graph, cp_graph_names = old_cp_graph, old_cp_graph_names
             continue
         cp_len = len(cp_graph)
-
+    # align_all_paths(agents)
+    # for i in range(len(agents[0].path)):
+    #     check_vc_ec_neic_iter(agents, i)
     return {a.name: a.path for a in agents}, {'agents': agents}
 
 
@@ -86,7 +90,7 @@ def main():
     # img_dir = 'maze-32-32-2.map'
     # img_dir = 'maze-32-32-4.map'
 
-    n_agents = 300
+    n_agents = 200
 
     to_render: bool = True
     # to_render: bool = False

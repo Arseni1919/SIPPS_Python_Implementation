@@ -113,43 +113,39 @@ def get_si_table(
     """
     si_table: Dict[str, List[Tuple[int, int]]] = {n.xy_name: deque() for n in nodes}
     max_t_len = int(max(np.max(pc_hard_np), np.max(pc_soft_np))) + 1
-    max_t_len = max(max_t_len, 1)# index starts at 0
+    max_t_len = max(max_t_len, 1)  # index starts at 0
+
     for n in nodes:
 
         v_line_np: np.ndarray = np.zeros(max_t_len + 2)
-        # vc soft
-        mask = vc_soft_np[n.x, n.y, :] == 1
-        v_line_np[:max_t_len][mask] = 0.5
-        # pc soft
-        if pc_soft_np[n.x, n.y] > -1:
-            prep_np = np.zeros(max_t_len + 1)
-            prep_np[int(pc_soft_np[n.x, n.y]):] = 1
-            mask = prep_np == 1
-            v_line_np[:max_t_len + 1][mask] = 0.5
-        # vc hard
-        mask = vc_hard_np[n.x, n.y, :] == 1
-        v_line_np[:max_t_len][mask] = 1
-        # pc soft
-        if pc_hard_np[n.x, n.y] > -1:
-            prep_np = np.zeros(max_t_len + 1)
-            prep_np[int(pc_hard_np[n.x, n.y]):] = 1
-            mask = prep_np == 1
-            v_line_np[:max_t_len + 1][mask] = 1
+        if np.sum(vc_soft_np[n.x, n.y, :]) != 0:
+            # vc soft
+            mask = vc_soft_np[n.x, n.y, :] == 1
+            v_line_np[:max_t_len][mask] = 0.5
+            # pc soft
+            if pc_soft_np[n.x, n.y] > -1:
+                prep_np = np.zeros(max_t_len + 1)
+                prep_np[int(pc_soft_np[n.x, n.y]):] = 1
+                mask = prep_np == 1
+                v_line_np[:max_t_len + 1][mask] = 0.5
+        if np.sum(vc_hard_np[n.x, n.y, :]) != 0:
+            # vc hard
+            mask = vc_hard_np[n.x, n.y, :] == 1
+            v_line_np[:max_t_len][mask] = 1
+            # pc soft
+            if pc_hard_np[n.x, n.y] > -1:
+                prep_np = np.zeros(max_t_len + 1)
+                prep_np[int(pc_hard_np[n.x, n.y]):] = 1
+                mask = prep_np == 1
+                v_line_np[:max_t_len + 1][mask] = 1
+
         v_line_np[-1] = inf_num
         v_line = v_line_np
-        # v_line: list = v_line_np.tolist()
-        # v_line.append(inf_num)
 
         # --- #
-
-        # con_slises = find_consecutive_slices(v_line, inf_num)
-        # for slice in con_slises:
-        #     si = v_line[slice]
-        #     if si[0] != 1:
-        #         start = slice.start
-        #         stop = slice.stop if si[-1] < inf_num else inf_num
-        #         si_table[n.xy_name].append((start, stop))
-
+        # if not np.any(v_line_np[:-1]):
+        #     si_table[n.xy_name].append((0, inf_num))
+        #     continue
         start_si_time = 0
         started_si = False
         si_type = 0
@@ -254,7 +250,8 @@ def compute_c_g_h_f_values(
     if sipps_node.parent is None:
         sipps_node.g = 0
     else:
-        sipps_node.g = max(sipps_node.low, sipps_node.parent.g + 1)
+        # sipps_node.g = max(sipps_node.low, sipps_node.parent.g + 1)
+        sipps_node.g = sipps_node.low
 
     # h
     if sipps_node.xy_name != goal_node.xy_name:

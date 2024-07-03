@@ -24,6 +24,9 @@ class AgentLNS2:
         self.path: List[Node] | None = None
         self.collisions: int = 0
 
+    def __str__(self):
+        return f'{self.name}'
+
     @property
     def path_names(self):
         return [n.xy_name for n in self.path]
@@ -157,24 +160,38 @@ def create_hard_and_soft_constraints(h_priority_agents: List[AgentLNS2], map_dim
 
 
 def get_cp_graph(
-        agents: List[AgentLNS2]
+        agents: List[AgentLNS2],
+        other_agents: List[AgentLNS2] | None = None,
+        prev_cp_graph: Dict[str, List[AgentLNS2]] | None = None,
 ) -> Tuple[Dict[str, List[AgentLNS2]], Dict[str, List[str]]]:
+    if other_agents is None:
+        other_agents = []
     # align_all_paths(agents)
     cp_graph: Dict[str, List[AgentLNS2]] = {}
-    cp_graph_names: Dict[str, List[str]] = {}
     for a1, a2 in combinations(agents, 2):
         if not two_plans_have_no_confs(a1.path, a2.path):
             if a1.name not in cp_graph:
                 cp_graph[a1.name] = []
-                cp_graph_names[a1.name] = []
             if a2.name not in cp_graph:
                 cp_graph[a2.name] = []
-                cp_graph_names[a2.name] = []
             cp_graph[a1.name].append(a2)
             cp_graph[a2.name].append(a1)
-            cp_graph_names[a1.name].append(a2.name)
-            cp_graph_names[a2.name].append(a1.name)
-    return cp_graph, cp_graph_names
+    for other_a in other_agents:
+        if other_a.name in prev_cp_graph:
+            if other_a.name not in cp_graph:
+                cp_graph[other_a.name] = []
+            for nei in prev_cp_graph[other_a.name]:
+                if nei not in agents:
+                    cp_graph[other_a.name].append(nei)
+        for a in agents:
+            if not two_plans_have_no_confs(other_a.path, a.path):
+                if other_a.name not in cp_graph:
+                    cp_graph[other_a.name] = []
+                if a.name not in cp_graph:
+                    cp_graph[a.name] = []
+                cp_graph[other_a.name].append(a)
+                cp_graph[a.name].append(other_a)
+    return cp_graph, {}
 
 
 def get_agents_subset(
@@ -214,6 +231,7 @@ def get_agents_subset(
 
     s_h_dict = h_dict[curr_agent.start_node.xy_name]
     g_h_dict = h_dict[curr_agent.goal_node.xy_name]
+    # dists = [g_h_dict[a.goal_node.x, a.goal_node.y] for a in other_agents]
     # dists = [s_h_dict[a.start_node.x, a.start_node.y] + g_h_dict[a.start_node.x, a.start_node.y] for a in other_agents]
     dists = [s_h_dict[a.start_node.x, a.start_node.y] + g_h_dict[a.start_node.x, a.start_node.y] + s_h_dict[
         a.goal_node.x, a.goal_node.y] + g_h_dict[a.goal_node.x, a.goal_node.y] for a in other_agents]
