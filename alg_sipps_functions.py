@@ -118,34 +118,29 @@ def get_si_table(
     for n in nodes:
 
         v_line_np: np.ndarray = np.zeros(max_t_len + 2)
-        if np.sum(vc_soft_np[n.x, n.y, :]) != 0:
-            # vc soft
-            mask = vc_soft_np[n.x, n.y, :] == 1
-            v_line_np[:max_t_len][mask] = 0.5
-            # pc soft
-            if pc_soft_np[n.x, n.y] > -1:
-                prep_np = np.zeros(max_t_len + 1)
-                prep_np[int(pc_soft_np[n.x, n.y]):] = 1
-                mask = prep_np == 1
-                v_line_np[:max_t_len + 1][mask] = 0.5
-        if np.sum(vc_hard_np[n.x, n.y, :]) != 0:
-            # vc hard
-            mask = vc_hard_np[n.x, n.y, :] == 1
-            v_line_np[:max_t_len][mask] = 1
-            # pc soft
-            if pc_hard_np[n.x, n.y] > -1:
-                prep_np = np.zeros(max_t_len + 1)
-                prep_np[int(pc_hard_np[n.x, n.y]):] = 1
-                mask = prep_np == 1
-                v_line_np[:max_t_len + 1][mask] = 1
+        # vc soft
+        mask = vc_soft_np[n.x, n.y, :] == 1
+        v_line_np[:max_t_len][mask] = 0.5
+        # pc soft
+        if pc_soft_np[n.x, n.y] > -1:
+            prep_np = np.zeros(max_t_len + 1)
+            prep_np[int(pc_soft_np[n.x, n.y]):] = 1
+            mask = prep_np == 1
+            v_line_np[:max_t_len + 1][mask] = 0.5
+        # vc hard
+        mask = vc_hard_np[n.x, n.y, :] == 1
+        v_line_np[:max_t_len][mask] = 1
+        # pc soft
+        if pc_hard_np[n.x, n.y] > -1:
+            prep_np = np.zeros(max_t_len + 1)
+            prep_np[int(pc_hard_np[n.x, n.y]):] = 1
+            mask = prep_np == 1
+            v_line_np[:max_t_len + 1][mask] = 1
 
         v_line_np[-1] = inf_num
         v_line = v_line_np
 
         # --- #
-        # if not np.any(v_line_np[:-1]):
-        #     si_table[n.xy_name].append((0, inf_num))
-        #     continue
         start_si_time = 0
         started_si = False
         si_type = 0
