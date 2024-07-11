@@ -10,6 +10,7 @@ def run_sipps_insert_node(
         node: SIPPSNode,
         Q: List[SIPPSNode],
         P: List[SIPPSNode],
+        ident_dict: DefaultDict[str, List[SIPPSNode]],
         goal_node: Node,
         goal_np: np.ndarray,
         T: int,
@@ -20,21 +21,24 @@ def run_sipps_insert_node(
         agent=None,
 ) -> None:
     compute_c_g_h_f_values(node, goal_node, goal_np, T, T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
-    identical_nodes = get_identical_nodes(node, Q, P)
+    identical_nodes = get_identical_nodes(node, Q, P, ident_dict)
     for q in identical_nodes:
         if q.low <= node.low and q.c <= node.c:
             return
         elif node.low <= q.low and node.c <= q.c:
             if q in Q:
                 Q.remove(q)
+                ident_dict[q.ident_str].remove(q)
             if q in P:
                 P.remove(q)
+                ident_dict[q.ident_str].remove(q)
         elif node.low < q.high and q.low < node.high:
             if node.low < q.low:
                 node.set_high(q.low)
             else:
                 q.set_high(node.low)
     heapq.heappush(Q, node)
+    ident_dict[node.ident_str].append(node)
     return
 
 
@@ -43,6 +47,7 @@ def run_sipps_expand_node(
         nodes_dict: Dict[str, Node],
         Q: List[SIPPSNode],
         P: List[SIPPSNode],
+        ident_dict: DefaultDict[str, List[SIPPSNode]],
         si_table: Dict[str, List[Tuple[int, int]]],
         goal_node: Node,
         goal_np: np.ndarray,
@@ -55,7 +60,7 @@ def run_sipps_expand_node(
         agent=None
 ):
     I_group: List[Tuple[Node, int]] = get_I_group(node, nodes_dict, si_table, agent)
-    I_group_names = [(v.xy_name, i, si_table[v.xy_name][i]) for v, i in I_group]
+    # I_group_names = [(v.xy_name, i, si_table[v.xy_name][i]) for v, i in I_group]
     for v_node, si_id in I_group:
         init_low, init_high = si_table[v_node.xy_name][si_id]
         new_low = get_low_without_hard_ec(node, node.n, v_node, init_low, init_high, ec_hard_np, agent)
@@ -64,12 +69,12 @@ def run_sipps_expand_node(
         new_low_tag = get_low_without_hard_and_soft_ec(node, node.n, v_node, new_low, init_high, ec_hard_np, ec_soft_np)
         if new_low_tag is not None and new_low < new_low_tag < init_high:
             n_1 = SIPPSNode(v_node, (new_low, new_low_tag), si_id, False, parent=node)
-            run_sipps_insert_node(n_1, Q, P, goal_node, goal_np, T, T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
+            run_sipps_insert_node(n_1, Q, P, ident_dict, goal_node, goal_np, T, T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
             n_2 = SIPPSNode(v_node, (new_low_tag, init_high), si_id, False, parent=node)
-            run_sipps_insert_node(n_2, Q, P, goal_node, goal_np, T, T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
+            run_sipps_insert_node(n_2, Q, P, ident_dict, goal_node, goal_np, T, T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
         else:
             n_3 = SIPPSNode(v_node, (new_low, init_high), si_id, False, parent=node)
-            run_sipps_insert_node(n_3, Q, P, goal_node, goal_np, T, T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
+            run_sipps_insert_node(n_3, Q, P, ident_dict, goal_node, goal_np, T, T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
 
 
 def run_sipps(
@@ -87,14 +92,6 @@ def run_sipps(
         inf_num: int = int(1e10),
         agent=None
 ) -> Tuple[List[Node] | None, dict]:
-
-    # if vc_hard_np is not None and vc_soft_np is not None:
-    #     assert vc_hard_np.shape[2] == vc_soft_np.shape[2]
-    #     assert ec_hard_np.shape[4] == ec_soft_np.shape[4]
-        # assert int(max(np.max(pc_hard_np), np.max(pc_soft_np))) + 1 == vc_hard_np.shape[2]
-        # assert int(max(np.max(pc_hard_np), np.max(pc_soft_np))) + 1 == ec_hard_np.shape[4]
-    # if pc_hard_np is not None:
-    #     assert pc_hard_np[goal_node.x, goal_node.y] == -1
 
     if pc_hard_np is not None and pc_hard_np[goal_node.x, goal_node.y] == 1:
         return None, {}
@@ -114,7 +111,9 @@ def run_sipps(
 
     Q: List[SIPPSNode] = []
     P: List[SIPPSNode] = []
+    ident_dict: DefaultDict[str, List[SIPPSNode]] = defaultdict(lambda: [])
     heapq.heappush(Q, root)
+    ident_dict[root.ident_str].append(root)
 
     while len(Q) > 0:
         print(f'\r{len(Q)=}, {len(P)=}', end='')
@@ -139,10 +138,11 @@ def run_sipps(
             n_tag = duplicate_sipps_node(next_n)
             n_tag.is_goal = True
             n_tag.c += c_future
-            run_sipps_insert_node(n_tag, Q, P, goal_node, goal_np, T,  T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
-        run_sipps_expand_node(next_n, nodes_dict, Q, P, si_table, goal_node, goal_np, T,  T_tag,
+            run_sipps_insert_node(n_tag, Q, P, ident_dict, goal_node, goal_np, T,  T_tag, vc_soft_np, ec_soft_np, pc_soft_np)
+        run_sipps_expand_node(next_n, nodes_dict, Q, P, ident_dict, si_table, goal_node, goal_np, T,  T_tag,
                               ec_hard_np, vc_soft_np, ec_soft_np, pc_soft_np, agent)
         heapq.heappush(P, next_n)
+        ident_dict[next_n.ident_str].append(next_n)
     return None, {}
 
 
@@ -235,3 +235,13 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# if vc_hard_np is not None and vc_soft_np is not None:
+#     assert vc_hard_np.shape[2] == vc_soft_np.shape[2]
+#     assert ec_hard_np.shape[4] == ec_soft_np.shape[4]
+    # assert int(max(np.max(pc_hard_np), np.max(pc_soft_np))) + 1 == vc_hard_np.shape[2]
+    # assert int(max(np.max(pc_hard_np), np.max(pc_soft_np))) + 1 == ec_hard_np.shape[4]
+# if pc_hard_np is not None:
+#     assert pc_hard_np[goal_node.x, goal_node.y] == -1
+

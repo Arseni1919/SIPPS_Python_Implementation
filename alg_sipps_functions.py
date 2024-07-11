@@ -13,7 +13,7 @@ from functions import *
 
 
 class SIPPSNode:
-    def __init__(self, n: Node, si: Tuple[int, int], _id: int, is_goal: bool, parent: Self | None = None):
+    def __init__(self, n: Node, si: Tuple[int, int], given_id: int, is_goal: bool, parent: Self | None = None):
         self.x: int = n.x
         self.y: int = n.y
         self.n = n
@@ -22,7 +22,7 @@ class SIPPSNode:
         # self.xy_name: str = f'{self.x}_{self.y}'
         self.xy_name: str = self.n.xy_name
         self.si: List[int] = [si[0], si[1]]
-        self._id: int = _id
+        self.given_id: int = given_id
         self.is_goal: bool = is_goal
         self.parent: Self = parent
 
@@ -30,6 +30,21 @@ class SIPPSNode:
         self.h: int = 0
         self.f: int = 0
         self.c: int = 0
+
+    # def __eq__(self, other: Self) -> bool:
+    #     if self.xy_name != other.xy_name:
+    #         return False
+    #     if self.si != other. si:
+    #         return False
+    #     if self.id != other.id:
+    #         return False
+    #     if self.is_goal != other.is_goal:
+    #         return False
+    #     if self.parent.ident_str() != other.parent.ident_str():
+    #         return False
+    #     if self.g != other.g or self.h != other.h or self.f != other.f or self.c != other.c:
+    #         return False
+    #     return True
 
     @property
     def low(self):
@@ -41,10 +56,20 @@ class SIPPSNode:
 
     @property
     def id(self):
-        return self._id
+        return self.given_id
+
+    @property
+    def ident_str(self):
+        return f'{self.xy_name}_{self.given_id}_{self.is_goal}'
 
     def to_print(self):
-        return f'{self.xy_name}[{self._id}], g={self.g}, low={self.low}, high={self.high}, c={self.c}, h={self.h}'
+        return f'SNode: {self.xy_name}, id={self.given_id}, (l={self.low}, h={self.high}), c={self.c}, g={self.g}, h={self.h}'
+
+    def __str__(self):
+        return self.to_print()
+
+    def __repr__(self):
+        return self.to_print()
 
     def set_low(self, new_v: int):
         self.si[0] = new_v
@@ -77,20 +102,6 @@ class SIPPSNode:
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
-def find_consecutive_slices(arr, BIG):
-    slices = []
-    start = 0
-    current_value = arr[0]
-
-    for i in range(1, len(arr)):
-        if arr[i] != current_value and arr[i] != BIG:
-            slices.append(slice(start, i + 1))
-            start = i
-            current_value = arr[i]
-
-    # Append the last slice
-    slices.append(slice(start, len(arr)))
-    return slices
 
 
 def get_si_table(
@@ -111,34 +122,41 @@ def get_si_table(
         or
         (b) no soft vertex obstacles and no soft target obstacles at any timestep.
     """
-    si_table: Dict[str, List[Tuple[int, int]]] = {n.xy_name: deque() for n in nodes}
+    si_table: DefaultDict[str, List[Tuple[int, int]]] = defaultdict(lambda: [])
+    # si_table: Dict[str, List[Tuple[int, int]]] = {n.xy_name: deque() for n in nodes}
     max_t_len = int(max(np.max(pc_hard_np), np.max(pc_soft_np))) + 1
     max_t_len = max(max_t_len, 1)  # index starts at 0
 
+    vc_sum_np = np.sum(vc_hard_np, axis=2) + np.sum(vc_soft_np, axis=2)
+    indices = np.argwhere(vc_sum_np == 0)
+    for i, pos in enumerate(indices):
+        xy_name = f'{pos[0]}_{pos[1]}'
+        si_table[xy_name].append((0, inf_num))
+
+    v_line_nps: np.ndarray = np.zeros((vc_hard_np.shape[0], vc_hard_np.shape[1], max_t_len + 2))
+
+    mask = vc_soft_np == 1
+    v_line_nps[:, :, :max_t_len][mask] = 0.5
+
+    indices = np.argwhere(pc_soft_np > -1)
+    values = pc_soft_np[indices[:, 0], indices[:, 1]]
+    for i, pos in enumerate(indices):
+        v_line_nps[pos[0], pos[1], int(values[i]):] = 0.5
+
+    mask = vc_hard_np == 1
+    v_line_nps[:, :, :max_t_len][mask] = 1
+
+    indices = np.argwhere(pc_hard_np > -1)
+    values = pc_hard_np[indices[:, 0], indices[:, 1]]
+    for i, pos in enumerate(indices):
+        v_line_nps[pos[0], pos[1], int(values[i]):] = 0.5
+
+    v_line_nps[:, :, -1] = inf_num
+
     for n in nodes:
-
-        v_line_np: np.ndarray = np.zeros(max_t_len + 2)
-        # vc soft
-        mask = vc_soft_np[n.x, n.y, :] == 1
-        v_line_np[:max_t_len][mask] = 0.5
-        # pc soft
-        if pc_soft_np[n.x, n.y] > -1:
-            prep_np = np.zeros(max_t_len + 1)
-            prep_np[int(pc_soft_np[n.x, n.y]):] = 1
-            mask = prep_np == 1
-            v_line_np[:max_t_len + 1][mask] = 0.5
-        # vc hard
-        mask = vc_hard_np[n.x, n.y, :] == 1
-        v_line_np[:max_t_len][mask] = 1
-        # pc soft
-        if pc_hard_np[n.x, n.y] > -1:
-            prep_np = np.zeros(max_t_len + 1)
-            prep_np[int(pc_hard_np[n.x, n.y]):] = 1
-            mask = prep_np == 1
-            v_line_np[:max_t_len + 1][mask] = 1
-
-        v_line_np[-1] = inf_num
-        v_line = v_line_np
+        if vc_sum_np[n.x, n.y] == 0:
+            continue
+        v_line: np.ndarray = v_line_nps[n.x, n.y, :]
 
         # --- #
         start_si_time = 0
@@ -335,6 +353,7 @@ def get_identical_nodes(
         curr_node: SIPPSNode,
         Q: List[SIPPSNode],
         P: List[SIPPSNode],
+        ident_dict: DefaultDict[str, List[SIPPSNode]],
 ) -> List[SIPPSNode]:
     """
     Two nodes n1 and n2 have the same identity, denoted as n1 ∼ n2, iff:
@@ -346,8 +365,9 @@ def get_identical_nodes(
     # curr_xy_name = curr_node.xy_name
     curr_id = curr_node.id
     curr_is_goal = curr_node.is_goal
-    for n in [*Q, *P]:
-        if n.x == curr_node.x and n.y == curr_node.y and n.id == curr_id and n.is_goal == curr_is_goal:
+    # for n in [*Q, *P]:
+    for n in ident_dict[curr_node.ident_str]:
+        if n != curr_node:
             identical_nodes.append(n)
     # for n in Q:
     #     if n.xy_name == curr_xy_name and n.id == curr_id and n.is_goal == curr_is_goal:

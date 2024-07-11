@@ -90,7 +90,7 @@ def main():
     # img_dir = 'maze-32-32-2.map'
     # img_dir = 'maze-32-32-4.map'
 
-    n_agents = 100
+    n_agents = 140
 
     to_render: bool = True
     # to_render: bool = False

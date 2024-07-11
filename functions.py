@@ -10,7 +10,7 @@ import cProfile
 import itertools
 from itertools import combinations, permutations, tee, pairwise
 from typing import *
-from collections import deque
+from collections import deque, defaultdict
 
 import numpy as np
 import matplotlib.pyplot as plt
