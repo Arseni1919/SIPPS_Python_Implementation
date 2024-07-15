@@ -51,7 +51,7 @@ def run_prp(
             align_all_paths(h_priority_agents)
             for i in range(len(h_priority_agents[0].path)):
                 to_count = False if constr_type == 'hard' else True
-                collisions += check_vc_ec_neic_iter(h_priority_agents, i, to_count)
+                # collisions += check_vc_ec_neic_iter(h_priority_agents, i, to_count)
             if collisions > 0:
                 print(f'{collisions=} | {sipps_info['c']=}')
 
@@ -84,13 +84,13 @@ def main():
 
     # img_dir = '10_10_my_rand.map'
     # img_dir = 'empty-32-32.map'
-    # img_dir = 'random-32-32-10.map'
-    img_dir = 'random-32-32-20.map'
+    img_dir = 'random-32-32-10.map'
+    # img_dir = 'random-32-32-20.map'
     # img_dir = 'room-32-32-4.map'
     # img_dir = 'maze-32-32-2.map'
     # img_dir = 'maze-32-32-4.map'
 
-    n_agents = 200
+    n_agents = 100
 
     to_render: bool = True
     # to_render: bool = False

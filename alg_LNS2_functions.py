@@ -132,7 +132,7 @@ def create_init_solution(
         # checks
         runtime = time.time() - start_time
         print(f'\r[init] | agents: {len(h_priority_agents): <3} / {len(agents)} | {runtime= : .2f} s.',
-              end='')  # , end=''
+              end='\n')  # , end=''
 
 
 def create_hard_and_soft_constraints(h_priority_agents: List[AgentLNS2], map_dim: Tuple[int, int], constr_type: str):
@@ -194,11 +194,39 @@ def get_cp_graph(
     return cp_graph, {}
 
 
+def get_outer_agent_via_random_walk(
+        rand_agent: AgentLNS2,
+        agents_s: List[AgentLNS2],
+        occupied_from: Dict[str, AgentLNS2]
+) -> AgentLNS2:
+    next_node: Node = random.choice(rand_agent.path)
+    while True:
+        if next_node.xy_name in occupied_from and occupied_from[next_node.xy_name] not in agents_s:
+            return occupied_from[next_node.xy_name]
+        next_node = random.choice(next_node.neighbours_nodes)
+
+
+def get_agent_s_from_random_walk(
+        curr_agent: AgentLNS2,
+        cp_graph: Dict[str, List[AgentLNS2]],
+        n_neighbourhood: int,
+) -> List[AgentLNS2]:
+    out_list: List[AgentLNS2] = []
+    next_nei: AgentLNS2 = curr_agent
+    while len(out_list) < n_neighbourhood:
+        nei_agents = cp_graph[next_nei.name]
+        next_nei = random.choice(nei_agents)
+        if next_nei not in out_list:
+            out_list.append(next_nei)
+    return out_list
+
+
 def get_agents_subset(
         cp_graph: Dict[str, List[AgentLNS2]],
         cp_graph_names: Dict[str, List[str]],
         n_neighbourhood: int,
         agents: List[AgentLNS2],
+        occupied_from: Dict[str, AgentLNS2],
         h_dict: Dict[str, np.ndarray],
 ) -> List[AgentLNS2]:
     agents_with_cp: List[AgentLNS2] = [a for a in agents if a.name in cp_graph]
@@ -211,34 +239,37 @@ def get_agents_subset(
     while len(l_open) > 0:
         i += 1
         next_a = l_open.pop()
-        # lcc_names_1 = [a.name for a in lcc]
-        # assert next_a not in lcc
         heapq.heappush(lcc, next_a)
-        # lcc_names_2 = [a.name for a in lcc]
-        # if there are already N agents
-        if len(lcc) == n_neighbourhood:
-            return lcc
         random.shuffle(cp_graph[next_a.name])
         for nei_a in cp_graph[next_a.name]:
             if nei_a not in lcc and nei_a not in l_open:
                 l_open.append(nei_a)
 
-    # add until N agents
-    assert n_neighbourhood > len(lcc)
-    other_agents: List[AgentLNS2] = [a for a in agents if a.name not in cp_graph]
-    need_to_fill: int = n_neighbourhood - len(lcc)
-    # sampled_agents = random.sample(other_agents, need_to_fill)
+    agents_s: List[AgentLNS2] = []
+    if len(lcc) <= n_neighbourhood:
+        agents_s.extend(lcc)
+        while len(agents_s) < n_neighbourhood:
+            rand_agent = random.choice(agents_s)
+            outer_agent = get_outer_agent_via_random_walk(rand_agent, agents_s, occupied_from)
+            agents_s.append(outer_agent)
+        return agents_s
+    else:
+        # add until N agents
+        agents_s = get_agent_s_from_random_walk(curr_agent, cp_graph, n_neighbourhood)
+        return agents_s
 
-    s_h_dict = h_dict[curr_agent.start_node.xy_name]
-    g_h_dict = h_dict[curr_agent.goal_node.xy_name]
-    # dists = [g_h_dict[a.goal_node.x, a.goal_node.y] for a in other_agents]
-    # dists = [s_h_dict[a.start_node.x, a.start_node.y] + g_h_dict[a.start_node.x, a.start_node.y] for a in other_agents]
-    dists = [s_h_dict[a.start_node.x, a.start_node.y] + g_h_dict[a.start_node.x, a.start_node.y] + s_h_dict[
-        a.goal_node.x, a.goal_node.y] + g_h_dict[a.goal_node.x, a.goal_node.y] for a in other_agents]
-    biggest_dist = sum([1 / d for d in dists])
-    P = [(1 / d) / biggest_dist for d in dists]
-    sampled_agents = np.random.choice(other_agents, size=need_to_fill, replace=False, p=P)
 
-    lcc.extend(sampled_agents)
-
-    return lcc
+    # other_agents: List[AgentLNS2] = [a for a in agents if a.name not in cp_graph]
+    # need_to_fill: int = n_neighbourhood - len(lcc)
+    # # sampled_agents = random.sample(other_agents, need_to_fill)
+    # s_h_dict = h_dict[curr_agent.start_node.xy_name]
+    # g_h_dict = h_dict[curr_agent.goal_node.xy_name]
+    # # dists = [g_h_dict[a.goal_node.x, a.goal_node.y] for a in other_agents]
+    # # dists = [s_h_dict[a.start_node.x, a.start_node.y] + g_h_dict[a.start_node.x, a.start_node.y] for a in other_agents]
+    # dists = [s_h_dict[a.start_node.x, a.start_node.y] + g_h_dict[a.start_node.x, a.start_node.y] + s_h_dict[
+    #     a.goal_node.x, a.goal_node.y] + g_h_dict[a.goal_node.x, a.goal_node.y] for a in other_agents]
+    # biggest_dist = sum([1 / d for d in dists])
+    # P = [(1 / d) / biggest_dist for d in dists]
+    # sampled_agents = np.random.choice(other_agents, size=need_to_fill, replace=False, p=P)
+    # lcc.extend(sampled_agents)
+    # return lcc

@@ -46,11 +46,12 @@ def run_lns2(
     create_init_solution(agents, nodes, nodes_dict, h_dict, map_dim, constr_type, start_time)
     cp_graph, cp_graph_names = get_cp_graph(agents)
     cp_len = len(cp_graph)
+    occupied_from: Dict[str, AgentLNS2] = {a.start_node.xy_name: a for a in agents}
 
     # repairing procedure
     while cp_len > 0:
         print(f'\n{cp_len=}')
-        agents_subset: List[AgentLNS2] = get_agents_subset(cp_graph, cp_graph_names, n_neighbourhood, agents, h_dict)
+        agents_subset: List[AgentLNS2] = get_agents_subset(cp_graph, cp_graph_names, n_neighbourhood, agents, occupied_from, h_dict)
         old_paths: Dict[str, List[Node]] = {a.name: a.path[:] for a in agents_subset}
         agents_outer: List[AgentLNS2] = [a for a in agents if a not in agents_subset]
 
@@ -90,7 +91,9 @@ def main():
     # img_dir = 'maze-32-32-2.map'
     # img_dir = 'maze-32-32-4.map'
 
-    n_agents = 140
+    n_agents = 200
+
+    n_neighbourhood = 5
 
     to_render: bool = True
     # to_render: bool = False
@@ -107,7 +110,8 @@ def main():
     goal_nodes: List[Node] = random.sample(nodes, n_agents)
 
     paths_dict, info = run_lns2(
-        start_nodes, goal_nodes, nodes, nodes_dict, h_dict, map_dim
+        start_nodes, goal_nodes, nodes, nodes_dict, h_dict, map_dim,
+        constr_type='soft', n_neighbourhood=n_neighbourhood,
     )
 
     # plot

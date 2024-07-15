@@ -27,7 +27,8 @@ class Node:
     def __init__(self, x: int, y: int, neighbours: List[str] | None = None):
         self.x = x
         self.y = y
-        self.neighbours = [] if neighbours is None else neighbours
+        self.neighbours: List[str] = [] if neighbours is None else neighbours
+        self.neighbours_nodes: List[Self] = []
         self.xy_name = f'{self.x}_{self.y}'
 
     @property
@@ -45,6 +46,12 @@ class Node:
 
     def __hash__(self):
         return hash(self.xy_name)
+
+    def __str__(self):
+        return self.xy_name
+
+    def __repr__(self):
+        return self.xy_name
 
     def get_pattern(self) -> dict:
         return {'x': self.x, 'y': self.y, 'neighbours': self.neighbours}
@@ -110,9 +117,13 @@ def build_graph_from_np(img_np: np.ndarray, show_map: bool = False) -> Tuple[Lis
         # dist = distance_nodes(node1, node2)
         # if dist == 1:
 
-    for curr_node in nodes:
-        curr_node.neighbours.append(curr_node.xy_name)
-        heapq.heapify(curr_node.neighbours)
+    for node in nodes:
+        node.neighbours.append(node.xy_name)
+        heapq.heapify(node.neighbours)
+
+    for node in nodes:
+        for nei_name in node.neighbours:
+            node.neighbours_nodes.append(nodes_dict[nei_name])
 
     if show_map:
         plt.imshow(img_np, cmap='gray', origin='lower')

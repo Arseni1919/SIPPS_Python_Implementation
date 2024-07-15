@@ -149,7 +149,7 @@ def get_si_table(
     indices = np.argwhere(pc_hard_np > -1)
     values = pc_hard_np[indices[:, 0], indices[:, 1]]
     for i, pos in enumerate(indices):
-        v_line_nps[pos[0], pos[1], int(values[i]):] = 0.5
+        v_line_nps[pos[0], pos[1], int(values[i]):] = 1
 
     v_line_nps[:, :, -1] = inf_num
 
@@ -212,8 +212,13 @@ def get_c_v(
         sipps_node: SIPPSNode,
         vc_soft_np: np.ndarray,  # x, y, t -> bool (0/1)
 ) -> int:
-    vc_si_list = vc_soft_np[sipps_node.x, sipps_node.y, sipps_node.low: sipps_node.high]
-    return int(np.any(vc_si_list))
+    # vc_si_list = vc_soft_np[sipps_node.x, sipps_node.y, sipps_node.low: sipps_node.high]
+    # return int(np.any(vc_si_list))
+    for i in vc_soft_np[sipps_node.x, sipps_node.y, sipps_node.low: sipps_node.high]:
+        if i == 1:
+            return 1
+    return 0
+    # return int(np.any(vc_si_list))
 
 
 def get_c_e(
